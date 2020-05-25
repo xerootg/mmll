@@ -1,0 +1,22 @@
+[Communication]
+Connect      = SLOW-0x11
+Communicate  = HM0
+LogSpeed     = 250000
+
+[Identification]
+HWNumber           = "0261206110"
+SWNumber           = "1037352345"
+PartNumber         = "8D0907551A"
+SWVersion          = "0002"
+EngineId           = "2.7l V6/5VT"
+
+Logged variables are:
+#no.: name                , alias                           , addr  ,sz, bitm, S, I,  A         ,   B, unit
+#------------------------------------------------------------------------------------------------------------
+#001: dwkrz_0             , IgnitionRetardCyl1              , 380C17, 1, 0000, 1, 0,        0.75,   0, '�KW'
+#002: dwkrz_1             , IgnitionRetardCyl5              , 380C18, 1, 0000, 1, 0,        0.75,   0, '�KW'
+#003: dwkrz_2             , IgnitionRetardCyl3              , 380C19, 1, 0000, 1, 0,        0.75,   0, '�KW'
+#004: dwkrz_3             , IgnitionRetardCyl2              , 380C1A, 1, 0000, 1, 0,        0.75,   0, '�KW'
+#005: dwkrz_4             , IgnitionRetardCyl6              , 380C1B, 1, 0000, 1, 0,        0.75,   0, '�KW'
+#006: dwkrz_5             , IgnitionRetardCyl4              , 380C1C, 1, 0000, 1, 0,        0.75,   0, '�KW'
+FTSCD_tFuel, FuelTemp, 7F98AA, 8, 1,0,1,0, 'DegC' 

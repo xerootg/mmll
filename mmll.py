@@ -40,6 +40,7 @@ trichard3000
 from __future__ import print_function, division
 import sys, time, argparse
 import pylibme7
+from pylibme7 import hexlist
 from me7lconfig import *
 
 debug = 0   # Default debug value.  Can be overridden from the command line.
@@ -141,47 +142,79 @@ def main(debug):
       print()
       printconfig(config)
 
-      print("...sined")
+      print("...signed")
 
 
       ecu = pylibme7.Ecu()
       ecu.initialize(config[0][3])
+      print(config)
 
       print("....sealed")
 
-      print("Connected at 14400")
-      response = ecu.readecuid([ 0x94 ])
-      swnumber = textlist(response)
+      # print("Connected at 14400")
+      ecu.readecuid([0x91])
+      # swnumber = textlist(response)
+      swnumber = ""
+
+      # login
+      response = ecu.securityAccessL3()
+      # response = ecu.securityAccessL1()
  
       response = ecu.startdiagsession(int(config[0][5]))
+      # TODO: validate positive response
       if debug >= 3:  print("startdiagsession(" + config[0][5] +") response: " + hexlist(response) )
       print("Connected at " + config[0][5] )
 
-      p2min = [ 0x00 ]
-      p2max = [ 0x01 ]
-      p3min = [ 0x00 ]
-      p3max = [ 0x14 ]
-      p4min = [ 0x00 ]
+      try:
+         response = ecu.readecuid([0x87])
+         hardwareNumber = textlist(response)
+         print(f"VW Diagnosesoftwarenummer: {hardwareNumber}")
+      except:
+         pass
+      try:
+         response = ecu.readecuid([0x91])
+         hardwareNumber = textlist(response)
+         print(f"VW hardwareNumber: {hardwareNumber}")
+      except:
+         pass
+      try:
+         response = ecu.readecuid([0x9b])
+         vwecuID = textlist(response)
+         print(f"VW ECU ID: {vwecuID}")
+      except:
+         pass
+      try:
+         response = ecu.readecuid([0x9c])
+         flashInfo = textlist(response)
+         print(f"FlashInfo: str:{flashInfo} hex:{hexlist(response)}")
+      except:
+         pass
+
+
+      p2min = [ 0 ]
+      p2max = [ 1 ]
+      p3min = [ 0 ]
+      p3max = [ 20 ]
+      p4min = [ 0 ]
+      p4max = [ 20 ]
       accesstiming = p2min + p2max + p3min + p3max + p4min
-      response = ecu.accesstimingparameter(accesstiming)
-      if debug >= 3:  print("accesstimingparameter() response: " + hexlist(response) )
+      # response = ecu.accesstimingparameter(accesstiming)
+      # if debug >= 3:  print("accesstimingparameter() response: " + hexlist(response) )
  
       print("Timing Set, reading and preparing memory")
 
       # I don't know how this is used.  Is it really ECU Scaling?
-      ecuid_0x81 = ecu.readecuid([ 0x81 ])
-      if debug >= 3:  print("ecuid_0x81 =" + hexlist(ecuid_0x81) )
 
-      response = ecu.readecuid([ 0x94 ])
-      swnumber = textlist(response)
+      # response = ecu.readecuid([ 0x94 ])
+      swnumber = "textlist(response)"
       if debug >= 3:  print("SWNumber =" + swnumber)
 
-      response = ecu.readecuid([ 0x92 ])
-      hwnumber = textlist(response)
+      # response = ecu.readecuid([ 0x92 ])
+      hwnumber = "textlist(response)"
       if debug >= 3:  print("HWNumber =" + hwnumber)
 
-      response = ecu.readecuid([ 0x9b ])
-      partraw = textlist(response)
+      # response = ecu.readecuid([ 0x9b ])
+      partraw = "textlist(response)"
       if debug >= 3:  print("partraw  =" + partraw)
       partnumber = partraw[:12]
       swversion = partraw[12:16]
@@ -233,144 +266,10 @@ def main(debug):
 
       sys.stdout.write("Displaying ModelId  -                           ecu:[" + modelid + ']' + '\n')
 
+      #TODO: edc16 doesnt poll the same
+      cfgcheck = True
+
       if cfgcheck == True:
-
-         # Why are we doing this?
-         memaddrhi = [ 0x00 ]
-         memaddrmid = [ 0xe1 ]
-         memaddrlow = [ 0xb0 ]
-         memsize = [ 0x04 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize 
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-   
-         memaddrhi = [ 0x00 ]
-         memaddrmid = [ 0xe2 ]
-         memaddrlow = [ 0x28 ]
-         memsize = [ 0x04 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-   
-         # Why is this extra 0x00 needed?
-         ecu.send( [ 0x00 ] )
-         ecu.recv(1)
-
-         # Write to memory
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7a ]
-         memaddrlow = [ 0x00 ]
-         memsize = [ 0x80 ]
-         memvalues = []
-         # Repeats 0xc6, 0x7a 0x38 0x00 32 times
-         for i in range(32): 
-            memvalues = memvalues + [ 0xc6, 0x7a, 0x38, 0x0 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr(request)   # Response = 0x7d + memory address
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         ecu.send( [ 0x00 ] )                          # Why is this extra 0x00 needed?
-         ecu.recv(1)
-
-         # Write to memory
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7a ]
-         memaddrlow = [ 0x80 ]    # Write starting after the previous write
-         memsize = [ 0x80 ]
-         memvalues = []
-         # Repeats 0xc6, 0x7a 0x38 0x00 16 more times
-         for i in range(16):
-            memvalues = memvalues + [ 0xc6, 0x7a, 0x38, 0x0 ]
-         # Then load the following hex into memory.  I don't know what this hex does yet. 
-         memvalues = memvalues + [ 0x62, 0xa7, 0x81, 0x0, 0x0, 0x0, 0xf2, 0xf4, 0xce, 0xe1, 0xa9, 0x84, 0x47, 0xf8, 0xb7, 0x0, 0x2d, 0x26, 0xd7, 0x10, 0x38, 0x0, 0xf2, 0xf4, 0xc0, 0x7a, 0xf2, 0xf5, 0xc2, 0x7a, 0x2d, 0x1d, 0x88, 0x80, 0x88, 0x70, 0x88, 0x60, 0xe6, 0xf8, 0x5e, 0x0, 0xe6, 0xf7, 0x4, 0x7a, 0x8, 0x44, 0xdc, 0x5, 0x98, 0x64, 0xd7, 0x0, 0x38, 0x0, 0xb8, 0x67, 0x8, 0x72, 0x2, 0xf8, 0x1e, 0xff ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr( request )   # Response = 0x7d + memory address
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         ecu.send( [ 0x00 ] )                          # Why is this extra 0x00 needed?
-         ecu.recv(1)
-
-         # Write to memory
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7b ]
-         memaddrlow = [ 0x00 ]    # Write starting at 0x38 0x7b 0x00
-         memsize = [ 0x80 ]
-         # No idea what this does yet:
-         memvalues = [ 0x70, 0x88, 0xed, 0xf6, 0xf2, 0xf4, 0x1c, 0xff, 0xd7, 0x10, 0x38, 0x0, 0xf6, 0xf4, 0xc0, 0x7a, 0xf6, 0xf4, 0xc2, 0x7a, 0x98, 0x60, 0x98, 0x70, 0x98, 0x80, 0xfa, 0x0, 0x66, 0x3b, 0x88, 0xb0, 0x88, 0xa0, 0x88, 0x90, 0x88, 0x80, 0x88, 0x70, 0x88, 0x60, 0xe1, 0xf, 0xf2, 0xf4, 0xca, 0xe1, 0x49, 0x81, 0x2d, 0x4, 0xf2, 0xf4, 0xce, 0xe1, 0x8, 0x41, 0x99, 0xf4, 0x49, 0xf0, 0x2d, 0x5, 0x49, 0xf3, 0x2d, 0x31, 0x49, 0xf4, 0x2d, 0x2f, 0xd, 0x6c, 0xf0, 0x9c, 0xe7, 0xf8, 0xf7, 0x0, 0xb9, 0x89, 0x8, 0x91, 0xe6, 0xfa, 0x80, 0x7c, 0xe6, 0xfb, 0x38, 0x0, 0xd7, 0x0, 0x38, 0x0, 0xf3, 0xfc, 0xc4, 0x7a, 0x67, 0xfc, 0x7f, 0x0, 0x2d, 0x11, 0xdc, 0x1b, 0x98, 0x4a, 0x98, 0x5a, 0xf1, 0xeb, 0xe1, 0xb, 0x49, 0xe2, 0x2d, 0x4, 0xdc, 0x5, 0x99, 0xd4, 0xb9, 0xd9, 0x8, 0x91 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr( request )   # Response = 0x7d + memory address
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         ecu.send( [ 0x00 ] )                          # Why is this extra 0x00 needed?
-         ecu.recv(1)
-
-         # Write to memory
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7b ]
-         memaddrlow = [ 0x80 ]    # Write starting after the previous write
-         memsize = [ 0x80 ]
-         # No idea what this does yet:
-         memvalues = [ 0xdc, 0x5, 0x99, 0xd4, 0xb9, 0xd9, 0x8, 0x91, 0x29, 0xc1, 0x3d, 0xef, 0xf0, 0x49, 0x20, 0x4c, 0xe6, 0xf6, 0x0, 0x8, 0x74, 0xf6, 0x74, 0xe0, 0x98, 0x60, 0x98, 0x70, 0x98, 0x80, 0x98, 0x90, 0x98, 0xa0, 0x98, 0xb0, 0xdb, 0x0, 0xf2, 0xf4, 0xca, 0xe1, 0x29, 0x82, 0xf1, 0xa8, 0xe1, 0xb, 0xe6, 0xfa, 0x80, 0x7c, 0xe6, 0xfb, 0x38, 0x0, 0x49, 0xf3, 0x2d, 0x9, 0x6, 0xfa, 0x0, 0x1, 0xd7, 0x0, 0x38, 0x0, 0xf3, 0xfb, 0xc4, 0x7a, 0x47, 0xfb, 0x40, 0x0, 0x3d, 0xfe, 0xf2, 0xf4, 0xce, 0xe1, 0x8, 0x42, 0x49, 0xa3, 0x8d, 0x19, 0x99, 0xe4, 0x99, 0xd4, 0x99, 0xc4, 0xf1, 0xfe, 0x67, 0xfe, 0xbf, 0x0, 0xdc, 0x2b, 0xb9, 0xca, 0x8, 0xa1, 0xb9, 0xda, 0x8, 0xa1, 0xdc, 0xb, 0xb9, 0xea, 0x8, 0xa1, 0xe1, 0x1e, 0x67, 0xff, 0x40, 0x0, 0x3d, 0x1, 0x9, 0xe1, 0xdc, 0xb ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr( request )   # Response = 0x7d + memory address
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         ecu.send( [ 0x00 ] )                          # Why is this extra 0x00 needed?
-         ecu.recv(1)
-
-         # Write to memory
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7c ]
-         memaddrlow = [ 0x00 ]    # Write starting after the previous write
-         memsize = [ 0x46 ]
-         # No idea what this does yet:
-         memvalues = [ 0xb9, 0xea, 0x8, 0xa1, 0x9, 0xb1, 0x29, 0xa3, 0xd, 0xe5, 0x67, 0xfb, 0x7f, 0x0, 0xd7, 0x0, 0x38, 0x0, 0xf7, 0xfb, 0xc4, 0x7a, 0xf0, 0x9c, 0xe7, 0xf8, 0xf7, 0x0, 0xb9, 0x89, 0xe0, 0x14, 0xd, 0xb7, 0xe6, 0xf4, 0xff, 0xf7, 0x64, 0xf4, 0x74, 0xe0, 0xf0, 0xe9, 0xe7, 0xf8, 0x7f, 0x0, 0xb9, 0x8e, 0x8, 0xe1, 0xe7, 0xf8, 0xb7, 0x0, 0xb9, 0x8e, 0x8, 0xe1, 0xe7, 0xf8, 0x12, 0x0, 0xb9, 0x8e, 0xe1, 0x38, 0xd, 0xa9 ] 
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr( request )   
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         # Read back what we wrote earlier  
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7a ]
-         memaddrlow = [ 0x00 ]
-         memsize = [ 0x80 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7a ]
-         memaddrlow = [ 0x80 ]
-         memsize = [ 0x80 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7b ]
-         memaddrlow = [ 0x80 ]
-         memsize = [ 0x80 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         memaddrhi = [ 0x38 ]
-         memaddrmid = [ 0x7c ]
-         memaddrlow = [ 0x00 ]
-         memsize = [ 0x46 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize
-         response = ecu.readmembyaddr( request )
-         if debug >= 3:  print("readmembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
-
-         # Write to memory
-         memaddrhi = [ 0x00 ]
-         memaddrmid = [ 0xe2 ]
-         memaddrlow = [ 0x28 ]   
-         memsize = [ 0x04 ]
-         memvalues = [ 0x00, 0x3a, 0xe1, 0x00 ]
-         request = memaddrhi + memaddrmid + memaddrlow + memsize + memvalues
-         response = ecu.writemembyaddr( request )
-         if debug >= 3:  print("writemembyaddr(): request: " + hexlist(request) + " response: " + hexlist(response) )
 
          response = ecu.testerpresent()
          if debug >= 3:  print("testerpresent(): response: " + hexlist(response))
@@ -380,7 +279,18 @@ def main(debug):
 
          # Tell ECU memory locations to log, based on the config and ecu file data:
          logline = loglocations(config)
-         response = ecu.setuplogrecord(logline[0])
+         def setuplogrecord():
+            return ecu.setuplogrecord(logline[0])
+         success = False
+         while(not success):
+            try:
+               response = ecu.setuplogrecord(logline[0])
+               success = True
+            except Exception as e:
+               if e.args[0] != "busyRepeatRequest":
+                  raise e
+               print("retrying....");
+               
          if debug >= 3:  print("loglocations(): request: " + hexlist(logline[0]) + " response: " + hexlist(response) )
          # grab logpacketsize from loglocations() return and tack it to the end of ecu config info
          config[0] = config[0] + [ logline[1] ]
